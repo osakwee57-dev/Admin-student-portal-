@@ -14,10 +14,28 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Supabase configuration
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://bannvfxsibavzhflpkcb.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhbm52ZnhzaWJhdnpoZmxwa2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODA3MDAsImV4cCI6MjA5MzE1NjcwMH0.PkpsHusxPzNm8d1cRZWBMaxbvsaGR8zdF9gJMUCmnYo';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('CRITICAL: Missing SUPABASE_URL or SUPABASE_KEY environment variables.');
+}
+
+const supabase = createClient(SUPABASE_URL || '', SUPABASE_KEY || '');
+
+// Connection verification helper
+async function checkSupabaseConnection() {
+  try {
+    const { data, error } = await supabase.from('schools').select('count', { count: 'exact', head: true });
+    if (error) {
+      console.error('Supabase Connection Error:', error.message);
+    } else {
+      console.log('Supabase Connected successfully.');
+    }
+  } catch (err) {
+    console.error('Supabase Connection Exception:', err);
+  }
+}
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -311,8 +329,9 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Server running at http://0.0.0.0:${PORT}`);
+    await checkSupabaseConnection();
   });
 }
 
