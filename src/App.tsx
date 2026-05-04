@@ -400,20 +400,25 @@ function AdminLoginForm({ onSuccess, onGoToRegister }: { onSuccess: (admin: any)
     setError('');
 
     try {
+      console.log('Initiating admin login for:', formData.username, 'at', formData.schoolCode);
       const res = await fetch('/api/admin-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
-      const data = await res.json();
-
+      
       if (res.ok) {
+        const data = await res.json();
+        console.log('Login successful');
         onSuccess(data.admin);
       } else {
-        setError(data.error || 'Login failed');
+        const errorData = await res.json().catch(() => ({ error: 'Unknown server error' }));
+        console.error('Login failed with status:', res.status, errorData);
+        setError(errorData.error || `Login failed (${res.status})`);
       }
-    } catch (e) {
-      setError('Connection error. Please try again.');
+    } catch (e: any) {
+      console.error('Fetch exception during login:', e);
+      setError(`Connection error: ${e.message || 'Please check your internet and try again.'}`);
     } finally {
       setLoading(false);
     }

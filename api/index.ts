@@ -13,15 +13,15 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Supabase configuration
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
+// Supabase configuration - Using environment variables with fallback to internal defaults
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://bannvfxsibavzhflpkcb.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhbm52ZnhzaWJhdnpoZmxwa2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODA3MDAsImV4cCI6MjA5MzE1NjcwMH0.PkpsHusxPzNm8d1cRZWBMaxbvsaGR8zdF9gJMUCmnYo';
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('CRITICAL: Missing SUPABASE_URL or SUPABASE_KEY environment variables.');
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+  console.log('INFO: Using default Supabase credentials. For production, set SUPABASE_URL and SUPABASE_KEY in settings.');
 }
 
-const supabase = createClient(SUPABASE_URL || '', SUPABASE_KEY || '');
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Connection verification helper
 async function checkSupabaseConnection() {
@@ -46,6 +46,23 @@ async function startServer() {
 
   app.use(cors());
   app.use(express.json());
+
+  // Health Check
+  app.get('/api/status', async (req, res) => {
+    let dbStatus = 'connecting';
+    try {
+      const { error } = await supabase.from('schools').select('count', { count: 'exact', head: true });
+      dbStatus = error ? `error: ${error.message}` : 'connected';
+    } catch (e) {
+      dbStatus = 'exception';
+    }
+    res.json({ 
+      status: 'online', 
+      database: dbStatus,
+      env: process.env.NODE_ENV,
+      cwd: process.cwd()
+    });
+  });
 
   // API Routes
   app.post('/api/register-school', async (req: Request, res: Response) => {
@@ -322,16 +339,15 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, 'dist');
+    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, '0.0.0.0', async () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running at http://0.0.0.0:${PORT}`);
-    await checkSupabaseConnection();
   });
 }
 
